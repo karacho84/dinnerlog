@@ -81,8 +81,9 @@ class GUI(object):
         self.fr_stats = Labelframe(self.root, borderwidth=2, relief=GROOVE, text="Statistik")
         self.fr_stats.grid(row=3, column=0, sticky="NSWE")
 
-        #self.cv_stats = Canvas(self.fr_stats, height=80, width=600)
-        #self.cv_stats.create_line(2,5,598,5, fill="#bbb")
+        self.cv_stats = Canvas(self.fr_stats, height=80, width=600)
+        self.cv_stats.create_line(2,5,598,5, fill="#bbb")
+        self.cv_stats.pack()
         
     def _addNeueMahlzeitFrame(self):
         self.fr_neue_mz = Frame(self.fr_mahlzeit)
