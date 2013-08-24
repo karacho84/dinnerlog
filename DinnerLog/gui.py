@@ -41,7 +41,7 @@ class GUI(object):
         sb_zutaten.pack(side="right", fill="both")
         self.lb_zutaten.grid(row=0, column=0, sticky="NSEW")
         
-        self._addNeueZutatFrame()    
+        self.__addNeueZutatFrame()    
 
         # Ein Frame in den alles, das mit Mahlzeiten zu tun hat, kommt
         self.fr_mahlzeit = Labelframe(self.root, borderwidth=2, relief=GROOVE, text="Mahlzeiten")
@@ -49,7 +49,7 @@ class GUI(object):
         self.fr_mahlzeit.grid_rowconfigure(0, weight=1)
         self.fr_mahlzeit.grid(row=1, column=0, sticky="NSWE")
         
-        self._addNeueMahlzeitFrame()
+        self.__addNeueMahlzeitFrame()
         
 
         self.lb_mahlzeiten = Listbox(self.fr_mahlzeit, selectmode=SINGLE)
@@ -81,11 +81,22 @@ class GUI(object):
         self.fr_stats = Labelframe(self.root, borderwidth=2, relief=GROOVE, text="Statistik")
         self.fr_stats.grid(row=3, column=0, sticky="NSWE")
 
-        self.cv_stats = Canvas(self.fr_stats, height=80, width=600)
-        self.cv_stats.create_line(2,5,598,5, fill="#bbb")
+        self.statsHeight=80
+        self.statsWidth=600
+        self.cv_stats = Canvas(self.fr_stats, height=self.statsHeight, width=self.statsWidth)
         self.cv_stats.pack()
         
-    def _addNeueMahlzeitFrame(self):
+        # Prozentlinien in Grau
+        defaultPadding=2
+        for perc in [0, 20, 40, 60, 80, 100]:
+            lineStartX, lineStartY = getAbsolutePos(self.statsWidth, self.statsHeight, defaultPadding, 0, perc)
+            lineEndX, lineEndY = getAbsolutePos(self.statsWidth, self.statsHeight, defaultPadding, 100, perc)
+        
+            self.cv_stats.create_line(lineStartX, lineStartY, lineEndX, lineEndY, fill="#AAA")
+        
+        self.statsLineIDs = []
+        
+    def __addNeueMahlzeitFrame(self):
         self.fr_neue_mz = Frame(self.fr_mahlzeit)
         self.fr_neue_mz.grid_rowconfigure(2, weight=1)
         self.fr_neue_mz.grid(row=0, column=1, sticky="WSNE")
@@ -118,7 +129,7 @@ class GUI(object):
         self.btn_mahlzeit_hinzu = Button(self.fr_neue_mz, text="Hinzu")
         self.btn_mahlzeit_hinzu.grid(row=3, column=2, sticky="E")
         
-    def _addNeueZutatFrame(self):
+    def __addNeueZutatFrame(self):
         fr_neue_zt = Frame(self.fr_zutaten)
         fr_neue_zt.grid(row=0, column=2,sticky="NWSE")
         
@@ -154,3 +165,42 @@ class GUI(object):
         
         self.btn_zutat_delete = Button(fr_neue_zt, text="Loeschen")
         self.btn_zutat_delete.grid(row=6, column=1, sticky="E")
+        
+    def viewStatistics(self, stats=[]):
+        """Eine Liste von float oder int-Werten im Statistikpanel anzeigen"""
+        # Alte linien loeschen
+        for lineID in self.statsLineIDs:
+            self.cv_stats.delete(lineID)
+        
+        # Neue linien zeichnen
+        maxEntry=max(stats)+1
+        
+        defaultPadding=2
+        
+        startX=10
+        stepX=(99-startX)/(len(stats)-1)
+        for stat in stats:
+            # Prozentuale hoehe, mindesten 1, um etwas anzuzeigen
+            relHeight = stat/maxEntry*100.0
+            topX,topY = getAbsolutePos(self.statsWidth, self.statsHeight, defaultPadding, startX, relHeight)
+            bottomX,bottomY = getAbsolutePos(self.statsWidth, self.statsHeight, defaultPadding, startX, 0)
+            if topY == bottomY:
+                topY-=1 # Immer mindestens einen Pixel anzeigen
+            lineID = self.cv_stats.create_line(bottomX, bottomY, topX, topY, fill="#77C", width=5)
+            self.statsLineIDs.append(lineID)
+            startX+=stepX
+            print(startX)
+        
+def getAbsolutePos(absWidth,absHeight,absPad,relX,relY):
+    """Liefert die absoluten Koordinaten fuer eine relative Eingabe.
+    
+    Wichtig:! relX=0 und relY=0 entspricht der linken unteren Ecke,
+              relX=100 und relY=100 der rechten oberen
+    """
+    absWidth-=2*absPad
+    absHeight-=2*absPad
+    
+    absX=round(absWidth/100*relX+absPad)
+    absY=round(absHeight-(absHeight/100*relY)+absPad)
+    
+    return absX, absY

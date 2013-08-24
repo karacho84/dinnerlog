@@ -11,7 +11,7 @@ class Mahlzeit(object):
     '''
 
 
-    def __init__(self, name, zutaten, angelegt=datetime.now()):
+    def __init__(self, name, zutaten, angelegt=datetime.today()):
         '''Initialisieren mit Name und Zutaten-Dictionary'''
         self.name = name
         self.zutaten = zutaten

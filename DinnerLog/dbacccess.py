@@ -6,6 +6,7 @@ Created on 18.08.2013
 import sqlite3
 from zutat import Zutat
 from mahlzeit import Mahlzeit
+from datetime import datetime
 
 class DBAccess(object):
     '''Uebernimmt den Zugriff auf eine SQLite Datenbank, und versteckt alle direkten Datenbank-Zugriffe.
@@ -33,7 +34,7 @@ class DBAccess(object):
         self.__listeners = []
         
         # Mit der Datenbank verbinden
-        conn = sqlite3.connect(self.__dbname, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(self.__dbname)
         
         # Einen cursor holen
         c = conn.cursor()
@@ -45,7 +46,7 @@ class DBAccess(object):
             exists = True
             break
         if exists == False:
-            c.execute("CREATE TABLE mahlzeiten (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, angelegt TIMESTAMP);")
+            c.execute("CREATE TABLE mahlzeiten (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, angelegt TEXT);")
                          
         # Die Tabelle zutaten anlegen, wenn es sie noch nicht gibt
         c.execute("SELECT * FROM sqlite_master WHERE name = 'zutaten' AND type = 'table'")
@@ -87,7 +88,7 @@ class DBAccess(object):
             # Zweiten cursor fuer Zutaten holen
             c2 = conn.cursor()
             c2.execute("SELECT zutat_name, menge FROM mengen WHERE mahlzeit_id = ?;", (mahlzeit[0],))
-            mahlzeit_hinzu = Mahlzeit(mahlzeit[1], {}, mahlzeit[2])
+            mahlzeit_hinzu = Mahlzeit(mahlzeit[1], {}, datetime.strptime(mahlzeit[2], "%Y-%m-%d %H:%M:%S.%f"))
             
             # kcal holen
             for menge in c2:
@@ -220,7 +221,7 @@ class DBAccess(object):
         # Die ID der Mahlzeit holen
         mahlzeit_id = c.fetchone()
         
-        if mahlzeit_id[0]:
+        if mahlzeit_id:
             print("Loesche Mahlzeit mit ID {}".format(mahlzeit_id[0]) )
         
             # Alle Mengen die zu dieser ID in der DB stehen, loeschen

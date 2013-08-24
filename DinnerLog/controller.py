@@ -8,6 +8,7 @@ from gui import GUI
 from tkinter.constants import END
 from zutat import Zutat
 from mahlzeit import Mahlzeit
+from datetime import datetime, timedelta
 
 class Controller(object):
     '''Vermittelt zwischen GUI und DBAccess'''
@@ -34,6 +35,7 @@ class Controller(object):
         # Initialer Datenabruf
         self.__updateZutaten()
         self.__updateMahlzeiten()
+        self.__updateStats()
         
         # View-Elemente der GUI mit Aktionen verbinden        
         setCallbackListBox(self.__gui.lb_mahlzeiten, self.__zeigeMahlzeitDetails)
@@ -81,18 +83,12 @@ class Controller(object):
         # alle GUI elemente die mahlzeiten anzeigen updaten
         self.__gui.lb_mahlzeiten.delete(0, END)
         
-        for mahlzeit in self.__data_mahlzeiten:
-            gesamt_kcal = 0
-            gesamt_fett = 0
-            gesamt_eiweiss = 0
-            gesamt_kh = 0
-            for zutat, menge in mahlzeit.zutaten.items():
-                gesamt_kcal += zutat.kcal*menge/100;
-                gesamt_fett += zutat.fett*menge/100;
-                gesamt_eiweiss += zutat.eiweiss*menge/100;
-                gesamt_kh += zutat.kh*menge/100;
+        for mahlzeit in self.__data_mahlzeiten:            
+            kcal, fett, eiweiss, kh, __ = self.__getMahlzeitNaehrwert(mahlzeit)
             
-            self.__gui.lb_mahlzeiten.insert(END, "{0}: {1:.1f} kcal, {2:.1f}g Fett, {3:.1f}g Eiweiss, {4:.1f}g Kh {5}".format(mahlzeit.name, gesamt_kcal, gesamt_fett, gesamt_eiweiss, gesamt_kh, mahlzeit.angelegt))
+            self.__gui.lb_mahlzeiten.insert(END, "{0}: {1:.1f} kcal, {2:.1f}g Fett, {3:.1f}g Eiweiss, {4:.1f}g Kh {5}".format(mahlzeit.name, kcal, fett, eiweiss, kh, mahlzeit.angelegt))
+        
+        self.__updateStats()
     
     def __updateMahlzeitZutaten(self):
         # Alle GUI Elemente die Zutaten zu Mahlzeiten anzeigen
@@ -206,6 +202,22 @@ class Controller(object):
         
         self.__updateMahlzeitZutaten()
         
+
+    def __getMahlzeitNaehrwert(self, mahlzeit_neu):
+        gesamt_kcal = 0
+        gesamt_fett = 0
+        gesamt_eiweiss = 0
+        gesamt_kh = 0
+        gesamt_menge = 0
+        for zutat, menge in mahlzeit_neu.zutaten.items():
+            gesamt_kcal += zutat.kcal * menge / 100
+            gesamt_fett += zutat.fett * menge / 100
+            gesamt_eiweiss += zutat.eiweiss * menge / 100
+            gesamt_kh += zutat.kh * menge / 100
+            gesamt_menge += menge
+        
+        return gesamt_kcal, gesamt_fett, gesamt_menge, gesamt_eiweiss, gesamt_kh
+
     def __mahlzeitAlsZutat(self):
         """Eine Mahlzeit als Zutat in die DB einfuegen.
         
@@ -217,19 +229,31 @@ class Controller(object):
             mahlzeit_neu = Mahlzeit(name, {})
             mahlzeit_neu.addZutatenMitMenge(self.__data_zutaten_mahlzeit)
         
-            gesamt_fett = 0
-            gesamt_eiweiss = 0
-            gesamt_kh = 0
-            gesamt_menge = 0
-            for zutat, menge in mahlzeit_neu.zutaten.items():
-                gesamt_fett += zutat.fett*menge/100;
-                gesamt_eiweiss += zutat.eiweiss*menge/100;
-                gesamt_kh += zutat.kh*menge/100;
-                gesamt_menge+=menge
+            __, gesamt_fett, gesamt_menge, gesamt_eiweiss, gesamt_kh = self.__getMahlzeitNaehrwert(mahlzeit_neu)
             
             zutat_neu = Zutat(mahlzeit_neu.name, gesamt_fett/gesamt_menge*100, gesamt_eiweiss/gesamt_menge*100, gesamt_kh/gesamt_menge*100)
             self.__dba.insertZutat(zutat_neu)
     
+    def __getKCalFuerLetzteTage(self, tage=7):
+        ergebnisse=[]
+        heute = datetime.today()
+        for tagNr in range(0,tage):
+            gesucht=heute-timedelta(days=tagNr)
+            ergebnis=0
+            
+            for mahlzeit in self.__data_mahlzeiten:
+                if mahlzeit.angelegt.date() == gesucht.date():
+                    kcal, __, __, __, __ = self.__getMahlzeitNaehrwert(mahlzeit)
+                    ergebnis+=kcal
+            ergebnisse.append(ergebnis)
+            
+        return ergebnisse
+                    
+    def __updateStats(self):
+        kcalZuletzt = self.__getKCalFuerLetzteTage(7)
+        kcalZuletzt.reverse()
+        # Wir muessen die Liste umdrehen...
+        self.__gui.viewStatistics(kcalZuletzt)
         
 
 def setCallback(gui_elem, callback):
